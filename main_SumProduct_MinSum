@@ -1,0 +1,80 @@
+#include "SumProduct.h"
+using namespace  std;
+struct Fnode_inf
+{
+	bool flag;
+	int col_num;
+	double q_dmeg;
+	double r_meg;
+};
+struct Vnode_inf
+{
+	bool flag;
+	int Fcol_num;
+    int Frow_num;
+};
+Fnode_inf Fnode_inf_mat[H_row][Hmax_rowdeg];
+Vnode_inf Vnode_inf_mat[H_col][Hmax_coldeg];
+unsigned char P_MAT[H_row][H_col-H_row];
+int rearranged_col[H_row];
+int *en_out,*de_out;
+double *bit_noise;
+double BER =0;
+
+void initi();
+void HtoP();
+void encode(int *out_address);
+void add_noise(int * in_adderss,double N0,double * out_adderss);
+void decode(double *in_address,double N0,int *out_address);
+FILE  *fpb;
+
+void main()
+{
+	srand( (unsigned)time( NULL ) );
+	double EbN0;
+	double N0=2.0;
+
+	en_out=(int *) malloc((sizeof(int))*H_col);
+    de_out=(int *) malloc((sizeof(int))*H_col);
+    bit_noise=(double *) malloc((sizeof(double))*H_col);
+	
+	initi();
+
+	HtoP();
+	  
+	for(int SNR_point=0;SNR_point<13;SNR_point++,N0=N0/pow(2,0.25))
+	{
+	  double wrong_bit_num=0;
+	 
+      if((fpb=fopen("ber_MinSum.txt","a+"))==NULL)
+	  { 
+          cout<<"cannot open infile ber.txt"<<endl;
+    	  exit(1);
+	  }
+
+	  EbN0=10*log10(H_col/(H_col-H_row)/N0);
+	  cout<<endl<<"N0 is "<<N0<<endl;	
+	  cout<<endl<<"SNR is["<<EbN0<<"]dB"<<endl;	
+	  //N0=pow(10,(-(EbN0/10)))*(H_col/(H_col-H_row));
+	  int smui_block_num=1;
+	  for(smui_block_num=1;smui_block_num<=SIMULATION_BLOCK_NUM;smui_block_num++)
+	  {
+	      encode(en_out);
+	      add_noise(en_out,N0,bit_noise);
+	      decode(bit_noise,N0,de_out);
+		  for(int check=0;check<H_col;check++)
+		  {
+			 if(*(de_out+check)!=*(en_out+check))
+			 {
+			   wrong_bit_num++;// break;
+			 }
+		  }
+	  }//--------Block--------//
+	  BER=(wrong_bit_num)/smui_block_num/H_col;
+	  cout<<endl<<"BER is "<<BER<<endl;	
+	  fprintf(fpb,"%2.2f %1.3e",EbN0,BER);
+	  fprintf(fpb,"\n");
+	  fclose(fpb);
+	}//--------SNR--------//
+
+}
